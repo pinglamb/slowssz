@@ -4,6 +4,7 @@ require_relative 'slowssz/version'
 
 module Slowssz
   class WrongType < StandardError; end
+  class IncorrectSize < StandardError; end
   class ListTooBig < StandardError; end
 
   class Uint8
@@ -57,20 +58,21 @@ module Slowssz
   end
 
   class BitVector
-    attr_reader :value
+    attr_reader :value, :size
 
-    def <<(bit)
-      @value << bit
-    end
+    def val(value)
+      raise IncorrectSize unless value.size == @size
 
-    def size
-      @value.size
+      @value = value
+
+      self
     end
 
     private
 
     def initialize(value)
-      @value = value
+      @size = value.size
+      val(value)
     end
   end
 
@@ -81,6 +83,10 @@ module Slowssz
       raise ListTooBig if @value.size > @capacity
 
       @value << bit
+    end
+
+    def size
+      @value.size
     end
 
     private
@@ -97,6 +103,8 @@ module Slowssz
     attr_reader :value, :type, :capacity
 
     def val(value)
+      raise ListTooBig if value.size >= capacity
+
       new_value = []
       value.each do |v|
         raise WrongType unless v.is_a?(type)
@@ -110,9 +118,14 @@ module Slowssz
     end
 
     def <<(ele)
+      raise ListTooBig if size >= capacity
       raise WrongType unless ele.is_a?(type)
 
       @value << ele
+    end
+
+    def size
+      @value.size
     end
 
     private
