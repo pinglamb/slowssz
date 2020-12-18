@@ -99,6 +99,27 @@ module Slowssz
     end
   end
 
+  class Vector
+    attr_reader :value, :type, :size
+
+    def val(value)
+      raise IncorrectSize unless value.size == @size
+      raise WrongType unless value.all? { |v| v.is_a?(@type) }
+
+      @value = value
+
+      self
+    end
+
+    private
+
+    def initialize(type, value)
+      @type = type
+      @size = value.size
+      val(value)
+    end
+  end
+
   class List
     attr_reader :value, :type, :capacity
 
@@ -107,7 +128,7 @@ module Slowssz
 
       new_value = []
       value.each do |v|
-        raise WrongType unless v.is_a?(type)
+        raise WrongType unless v.is_a?(@type)
 
         new_value << v
       end
