@@ -90,6 +90,42 @@ RSpec.describe Slowssz do
     expect(Slowssz::Marshal.dump(new_bit_list_from_bytes('ff' * 64, [true], 513))).to eq(['ff' * 64 + '03'].pack('H*'))
   end
 
+  it 'uint8 00' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint8.new(0x00))).to eq(['00'].pack('H*'))
+  end
+
+  it 'uint8 01' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint8.new(0x01))).to eq(['01'].pack('H*'))
+  end
+
+  it 'uint8 ab' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint8.new(0xab))).to eq(['ab'].pack('H*'))
+  end
+
+  it 'uint16 0000' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint16.new(0x0000))).to eq(['0000'].pack('H*'))
+  end
+
+  it 'uint16 abcd' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint16.new(0xabcd))).to eq(['cdab'].pack('H*'))
+  end
+
+  it 'uint32 00000000' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint32.new(0x00000000))).to eq(['00000000'].pack('H*'))
+  end
+
+  it 'uint32 01234567' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint32.new(0x01234567))).to eq(['67452301'].pack('H*'))
+  end
+
+  it 'uint64 0000000000000000' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint64.new(0x0000000000000000))).to eq(['0000000000000000'].pack('H*'))
+  end
+
+  it 'uint64 0123456789abcdef' do
+    expect(Slowssz::Marshal.dump(Slowssz::Uint64.new(0x0123456789abcdef))).to eq(['efcdab8967452301'].pack('H*'))
+  end
+
   def new_bit_vector_from_bytes(bytes)
     Slowssz::BitVector.new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' })
   end
