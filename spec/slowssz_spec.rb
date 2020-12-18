@@ -2,11 +2,11 @@
 
 RSpec.describe Slowssz do
   it 'bool F' do
-    expect(Slowssz::Marshal.dump(false)).to eq(['00'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::Boolean.new(false))).to eq(['00'].pack('H*'))
   end
 
   it 'bool T' do
-    expect(Slowssz::Marshal.dump(true)).to eq(['01'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::Boolean.new(true))).to eq(['01'].pack('H*'))
   end
 
   it 'bitvector TTFTFTFF' do

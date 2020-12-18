@@ -5,43 +5,6 @@ require_relative 'slowssz/version'
 module Slowssz
   class ListTooBig < StandardError; end
 
-  class BitVector
-    attr_reader :value
-
-    def <<(bit)
-      @value << bit
-    end
-
-    def size
-      @value.size
-    end
-
-    private
-
-    def initialize(value)
-      @value = value
-    end
-  end
-
-  class BitList
-    attr_reader :value, :capacity
-
-    def <<(bit)
-      raise ListTooBig if @value.size > @capacity
-
-      @value << bit
-    end
-
-    private
-
-    def initialize(value, capacity)
-      @capacity = capacity
-      raise ListTooBig if value.size > @capacity
-
-      @value = value
-    end
-  end
-
   class Uint8
     attr_reader :value
 
@@ -82,10 +45,57 @@ module Slowssz
     end
   end
 
+  class Boolean
+    attr_reader :value
+
+    private
+
+    def initialize(value = false)
+      @value = !!value
+    end
+  end
+
+  class BitVector
+    attr_reader :value
+
+    def <<(bit)
+      @value << bit
+    end
+
+    def size
+      @value.size
+    end
+
+    private
+
+    def initialize(value)
+      @value = value
+    end
+  end
+
+  class BitList
+    attr_reader :value, :capacity
+
+    def <<(bit)
+      raise ListTooBig if @value.size > @capacity
+
+      @value << bit
+    end
+
+    private
+
+    def initialize(value, capacity)
+      @capacity = capacity
+      raise ListTooBig if value.size > @capacity
+
+      @value = value
+    end
+  end
+
   class Marshal
     class << self
       def dump(obj)
-        if obj.is_a?(TrueClass) || obj.is_a?(FalseClass)
+        if obj.is_a?(Boolean)
           dump_bool(obj)
         elsif obj.is_a?(BitVector)
           dump_bit_vector(obj)
@@ -107,7 +117,7 @@ module Slowssz
       private
 
       def dump_bool(bool)
-        [bool ? '1' : '0'].pack('b')
+        [bool.value ? '1' : '0'].pack('b')
       end
 
       def dump_bit_vector(bit_vector)
