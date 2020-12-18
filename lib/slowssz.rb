@@ -3,6 +3,7 @@
 require_relative 'slowssz/version'
 
 module Slowssz
+  class WrongType < StandardError; end
   class ListTooBig < StandardError; end
 
   class Uint8
@@ -92,6 +93,37 @@ module Slowssz
     end
   end
 
+  class List
+    attr_reader :value, :type, :capacity
+
+    def val(value)
+      new_value = []
+      value.each do |v|
+        raise WrongType unless v.is_a?(type)
+
+        new_value << v
+      end
+
+      @value = new_value
+
+      self
+    end
+
+    def <<(ele)
+      raise WrongType unless ele.is_a?(type)
+
+      @value << ele
+    end
+
+    private
+
+    def initialize(type, capacity)
+      @type = type
+      @capacity = capacity
+      @value = []
+    end
+  end
+
   class Marshal
     class << self
       def dump(obj)
@@ -109,6 +141,8 @@ module Slowssz
           dump_uint32(obj)
         elsif obj.is_a?(Uint64)
           dump_uint64(obj)
+        elsif obj.is_a?(List)
+          dump_list(obj)
         else
           ''
         end
@@ -142,6 +176,10 @@ module Slowssz
 
       def dump_uint64(uint64)
         [uint64.value].pack('Q<')
+      end
+
+      def dump_list(list)
+        list.value.inject('') { |str, v| str + dump(v) }
       end
     end
   end

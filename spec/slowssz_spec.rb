@@ -126,6 +126,26 @@ RSpec.describe Slowssz do
     expect(Slowssz::Marshal.dump(Slowssz::Uint64.new(0x0123456789abcdef))).to eq(['efcdab8967452301'].pack('H*'))
   end
 
+  it 'uint16 list' do
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::List
+          .new(Slowssz::Uint16, 32)
+          .val([Slowssz::Uint16.new(0xaabb), Slowssz::Uint16.new(0xc0ad), Slowssz::Uint16.new(0xeeff)])
+      )
+    ).to eq(['bbaaadc0ffee'].pack('H*'))
+  end
+
+  it 'uint32 list' do
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::List
+          .new(Slowssz::Uint32, 128)
+          .val([Slowssz::Uint32.new(0xaabb), Slowssz::Uint32.new(0xc0ad), Slowssz::Uint32.new(0xeeff)])
+      )
+    ).to eq(['bbaa0000adc00000ffee0000'].pack('H*'))
+  end
+
   def new_bit_vector_from_bytes(bytes)
     Slowssz::BitVector.new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' })
   end
