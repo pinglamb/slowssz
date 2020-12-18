@@ -69,4 +69,32 @@ RSpec.describe Slowssz do
       )
     ).to eq(['c5c201'].pack('H*'))
   end
+
+  it 'long bitvector' do
+    expect(Slowssz::Marshal.dump(new_bit_vector_from_bytes('ff' * 64))).to eq(['ff' * 64].pack('H*'))
+  end
+
+  it 'long bitlist' do
+    expect(Slowssz::Marshal.dump(Slowssz::BitList.new([true, true], 512))).to eq(['07'].pack('H*'))
+  end
+
+  it 'long bitlist filled' do
+    expect(Slowssz::Marshal.dump(new_bit_list_from_bytes('ff' * 64, [], 512))).to eq(['ff' * 64 + '01'].pack('H*'))
+  end
+
+  it 'odd bitvector filled' do
+    expect(Slowssz::Marshal.dump(new_bit_vector_from_bytes('ff' * 64 + '01'))).to eq(['ff' * 64 + '01'].pack('H*'))
+  end
+
+  it 'odd bitlist filled' do
+    expect(Slowssz::Marshal.dump(new_bit_list_from_bytes('ff' * 64, [true], 513))).to eq(['ff' * 64 + '03'].pack('H*'))
+  end
+
+  def new_bit_vector_from_bytes(bytes)
+    Slowssz::BitVector.new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' })
+  end
+
+  def new_bit_list_from_bytes(bytes, bits, capacity)
+    Slowssz::BitList.new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' } + bits, capacity)
+  end
 end
