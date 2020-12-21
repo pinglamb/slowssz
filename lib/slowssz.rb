@@ -234,7 +234,11 @@ module Slowssz
     end
 
     def variable_size?
-      @type.type.variable_size?
+      @type.variable_size?
+    end
+
+    def ele_variable_size?
+      @type.variable_size?
     end
 
     private
@@ -248,7 +252,7 @@ module Slowssz
   class Vector
     attr_reader :value, :type
 
-    def value_type
+    def ele_type
       @type.type
     end
 
@@ -258,6 +262,10 @@ module Slowssz
 
     def variable_size?
       @type.variable_size?
+    end
+
+    def ele_variable_size?
+      @type.ele_variable_size?
     end
 
     private
@@ -291,6 +299,10 @@ module Slowssz
       true
     end
 
+    def ele_variable_size?
+      @type.variable_size?
+    end
+
     private
 
     def initialize(type, limit)
@@ -304,12 +316,12 @@ module Slowssz
 
     def <<(ele)
       raise ListTooBig unless size < limit
-      raise WrongType, "#{ele.type} vs #{value_type}" unless ele.type == value_type
+      raise WrongType, "#{ele.type} vs #{ele_type}" unless ele.type == ele_type
 
       @value << ele
     end
 
-    def value_type
+    def ele_type
       @type.type
     end
 
@@ -323,6 +335,10 @@ module Slowssz
 
     def variable_size?
       @type.variable_size?
+    end
+
+    def ele_variable_size?
+      @type.ele_variable_size?
     end
 
     private
@@ -452,11 +468,39 @@ module Slowssz
       end
 
       def dump_vector(vector)
-        vector.value.inject('') { |str, v| str + dump(v) }
+        if vector.ele_variable_size?
+          variable_parts = vector.value.collect { |ele| dump(ele) }
+
+          fixed_length = BYTES_PER_LENGTH_OFFSET * vector.size
+          variable_lengths = variable_parts.collect { |part| part.bytes.size }
+
+          fixed_parts =
+            variable_parts.collect.with_index do |_part, i|
+              dump(Uint32.new(([fixed_length] + variable_lengths[0...i]).sum))
+            end
+
+          (fixed_parts + variable_parts).join('')
+        else
+          vector.value.inject('') { |str, v| str + dump(v) }
+        end
       end
 
       def dump_list(list)
-        list.value.inject('') { |str, v| str + dump(v) }
+        if list.ele_variable_size?
+          variable_parts = list.value.collect { |ele| dump(ele) }
+
+          fixed_length = BYTES_PER_LENGTH_OFFSET * list.size
+          variable_lengths = variable_parts.collect { |part| part.bytes.size }
+
+          fixed_parts =
+            variable_parts.collect.with_index do |_part, i|
+              dump(Uint32.new(([fixed_length] + variable_lengths[0...i]).sum))
+            end
+
+          (fixed_parts + variable_parts).join('')
+        else
+          list.value.inject('') { |str, v| str + dump(v) }
+        end
       end
 
       def dump_container(container)
