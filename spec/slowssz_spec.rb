@@ -383,4 +383,36 @@ RSpec.describe Slowssz do
       )
     ).to eq(['ab33221100ddccbbaa78563412'].pack('H*'))
   end
+
+  it 'VarTestStruct nil' do
+    expect(
+      Slowssz::Marshal.dump(VarTestContainer.new(Slowssz::Uint16.new(0xabcd), nil, Slowssz::Uint8.new(0xff)))
+    ).to eq(['cdab07000000ff'].pack('H*'))
+  end
+
+  it 'VarTestStruct empty' do
+    expect(
+      Slowssz::Marshal.dump(
+        VarTestContainer.new(
+          Slowssz::Uint16.new(0xabcd),
+          Slowssz::ListType.of(type: Slowssz::Uint16, limit: 1024).new([]),
+          Slowssz::Uint8.new(0xff)
+        )
+      )
+    ).to eq(['cdab07000000ff'].pack('H*'))
+  end
+
+  it 'VarTestStruct some' do
+    expect(
+      Slowssz::Marshal.dump(
+        VarTestContainer.new(
+          Slowssz::Uint16.new(0xabcd),
+          Slowssz::ListType
+            .of(type: Slowssz::Uint16, limit: 1024)
+            .new([Slowssz::Uint16.new(1), Slowssz::Uint16.new(2), Slowssz::Uint16.new(3)]),
+          Slowssz::Uint8.new(0xff)
+        )
+      )
+    ).to eq(['cdab07000000ff010002000300'].pack('H*'))
+  end
 end

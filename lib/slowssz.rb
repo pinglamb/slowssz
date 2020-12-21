@@ -8,11 +8,21 @@ module Slowssz
   class ListTooBig < StandardError; end
   class InsufficientArguments < StandardError; end
 
+  BYTES_PER_LENGTH_OFFSET = 4
+
   class Uint8
     attr_reader :value
 
     def type
       Uint8
+    end
+
+    def self.variable_size?
+      false
+    end
+
+    def variable_size?
+      self.class.variable_size?
     end
 
     private
@@ -29,6 +39,14 @@ module Slowssz
       Uint16
     end
 
+    def self.variable_size?
+      false
+    end
+
+    def variable_size?
+      self.class.variable_size?
+    end
+
     private
 
     def initialize(value = 0)
@@ -41,6 +59,14 @@ module Slowssz
 
     def type
       Uint32
+    end
+
+    def self.variable_size?
+      false
+    end
+
+    def variable_size?
+      self.class.variable_size?
     end
 
     private
@@ -57,6 +83,14 @@ module Slowssz
       Uint64
     end
 
+    def self.variable_size?
+      false
+    end
+
+    def variable_size?
+      self.class.variable_size?
+    end
+
     private
 
     def initialize(value = 0)
@@ -69,6 +103,14 @@ module Slowssz
 
     def type
       Boolean
+    end
+
+    def self.variable_size?
+      false
+    end
+
+    def variable_size?
+      self.class.variable_size?
     end
 
     private
@@ -89,6 +131,10 @@ module Slowssz
       BitVector.new(self, value)
     end
 
+    def variable_size?
+      false
+    end
+
     private
 
     def initialize(size)
@@ -101,6 +147,10 @@ module Slowssz
 
     def size
       @type.size
+    end
+
+    def variable_size?
+      @type.variable_size?
     end
 
     private
@@ -125,6 +175,10 @@ module Slowssz
       BitList.new(self, value)
     end
 
+    def variable_size?
+      true
+    end
+
     private
 
     def initialize(limit)
@@ -147,6 +201,10 @@ module Slowssz
 
     def limit
       @type.limit
+    end
+
+    def variable_size?
+      @type.variable_size?
     end
 
     private
@@ -175,6 +233,10 @@ module Slowssz
       type == other.type && size == other.size
     end
 
+    def variable_size?
+      @type.type.variable_size?
+    end
+
     private
 
     def initialize(type, size)
@@ -192,6 +254,10 @@ module Slowssz
 
     def size
       @type.size
+    end
+
+    def variable_size?
+      @type.variable_size?
     end
 
     private
@@ -219,6 +285,10 @@ module Slowssz
 
     def ==(other)
       type == other.type && limit == other.limit
+    end
+
+    def variable_size?
+      true
     end
 
     private
@@ -249,6 +319,10 @@ module Slowssz
 
     def size
       @value.size
+    end
+
+    def variable_size?
+      @type.variable_size?
     end
 
     private
@@ -284,8 +358,20 @@ module Slowssz
       fields.collect { |field| instance_variable_get("@#{field[0]}") }
     end
 
+    def value(field)
+      instance_variable_get("@#{field[0]}")
+    end
+
     def type
       self.class
+    end
+
+    def self.variable_size?
+      _fields.any? { |field| field[1].variable_size? }
+    end
+
+    def variable_size?
+      self.class.variable_size?
     end
 
     private
@@ -294,7 +380,7 @@ module Slowssz
       raise InsufficientArguments unless fields.size == values.size
 
       fields.each.with_index do |field, i|
-        raise WrongType, "#{values[i].type} vs #{field[1]}" unless values[i].type == field[1]
+        raise WrongType, "#{values[i].type} vs #{field[1]}" unless values[i].nil? || values[i].type == field[1]
 
         instance_variable_set("@#{field[0]}", values[i])
       end
@@ -304,7 +390,9 @@ module Slowssz
   class Marshal
     class << self
       def dump(obj)
-        if obj.is_a?(Boolean)
+        if obj.nil?
+          dump_nil
+        elsif obj.is_a?(Boolean)
           dump_bool(obj)
         elsif obj.is_a?(BitVector)
           dump_bit_vector(obj)
@@ -330,6 +418,10 @@ module Slowssz
       end
 
       private
+
+      def dump_nil
+        ''
+      end
 
       def dump_bool(bool)
         [bool.value ? '1' : '0'].pack('b')
@@ -368,7 +460,24 @@ module Slowssz
       end
 
       def dump_container(container)
-        container.values.inject('') { |str, v| str + dump(v) }
+        if container.variable_size?
+          fixed_parts =
+            container.fields.collect { |field| field[1].variable_size? ? :offset : dump(container.value(field)) }
+          variable_parts =
+            container.fields.collect { |field| field[1].variable_size? ? dump(container.value(field)) : '' }
+
+          fixed_lengths = fixed_parts.collect { |part| part == :offset ? BYTES_PER_LENGTH_OFFSET : part.bytes.size }
+          variable_lengths = variable_parts.collect { |part| part.bytes.size }
+
+          fixed_parts =
+            fixed_parts.collect.with_index do |part, i|
+              part == :offset ? dump(Uint32.new((fixed_lengths + variable_lengths[0...i]).sum)) : part
+            end
+
+          (fixed_parts + variable_parts).join('')
+        else
+          container.values.inject('') { |str, v| str + dump(v) }
+        end
       end
     end
   end
