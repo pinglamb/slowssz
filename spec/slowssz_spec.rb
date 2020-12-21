@@ -1,5 +1,17 @@
 # frozen_string_literal: true
 
+class EmptyTestContainer < Slowssz::Container
+  fields []
+end
+
+class SingleFieldTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint8]]
+end
+
+class SmallTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint16], [:b, Slowssz::Uint16]]
+end
+
 RSpec.describe Slowssz do
   it 'bool F' do
     expect(Slowssz::Marshal.dump(Slowssz::Boolean.new(false))).to eq(['00'].pack('H*'))
@@ -144,6 +156,113 @@ RSpec.describe Slowssz do
           .val([Slowssz::Uint32.new(0xaabb), Slowssz::Uint32.new(0xc0ad), Slowssz::Uint32.new(0xeeff)])
       )
     ).to eq(['bbaa0000adc00000ffee0000'].pack('H*'))
+  end
+
+  it 'bytes32 list' do
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::List
+          .new(Slowssz::Vector, 64)
+          .val(
+            [
+              Slowssz::Vector.new(
+                Slowssz::Uint8,
+                [Slowssz::Uint8.new(0xbb), Slowssz::Uint8.new(0xaa)] + [Slowssz::Uint8.new(0x00)] * 30
+              ),
+              Slowssz::Vector.new(
+                Slowssz::Uint8,
+                [Slowssz::Uint8.new(0xad), Slowssz::Uint8.new(0xc0)] + [Slowssz::Uint8.new(0x00)] * 30
+              ),
+              Slowssz::Vector.new(
+                Slowssz::Uint8,
+                [Slowssz::Uint8.new(0xff), Slowssz::Uint8.new(0xee)] + [Slowssz::Uint8.new(0x00)] * 30
+              )
+            ]
+          )
+      )
+    ).to eq(
+      [
+        'bbaa000000000000000000000000000000000000000000000000000000000000' +
+          'adc0000000000000000000000000000000000000000000000000000000000000' +
+          'ffee000000000000000000000000000000000000000000000000000000000000'
+      ].pack('H*')
+    )
+  end
+
+  it 'bytes32 list long' do
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::List
+          .new(Slowssz::Vector, 128)
+          .val(
+            [
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(1)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(2)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(3)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(4)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(5)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(6)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(7)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(8)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(9)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(10)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(11)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(12)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(13)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(14)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(15)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(16)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(17)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(18)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(19)] + [Slowssz::Uint8.new(0x00)] * 31)
+            ]
+          )
+      )
+    ).to eq(
+      [
+        '0100000000000000000000000000000000000000000000000000000000000000' +
+          '0200000000000000000000000000000000000000000000000000000000000000' +
+          '0300000000000000000000000000000000000000000000000000000000000000' +
+          '0400000000000000000000000000000000000000000000000000000000000000' +
+          '0500000000000000000000000000000000000000000000000000000000000000' +
+          '0600000000000000000000000000000000000000000000000000000000000000' +
+          '0700000000000000000000000000000000000000000000000000000000000000' +
+          '0800000000000000000000000000000000000000000000000000000000000000' +
+          '0900000000000000000000000000000000000000000000000000000000000000' +
+          '0a00000000000000000000000000000000000000000000000000000000000000' +
+          '0b00000000000000000000000000000000000000000000000000000000000000' +
+          '0c00000000000000000000000000000000000000000000000000000000000000' +
+          '0d00000000000000000000000000000000000000000000000000000000000000' +
+          '0e00000000000000000000000000000000000000000000000000000000000000' +
+          '0f00000000000000000000000000000000000000000000000000000000000000' +
+          '1000000000000000000000000000000000000000000000000000000000000000' +
+          '1100000000000000000000000000000000000000000000000000000000000000' +
+          '1200000000000000000000000000000000000000000000000000000000000000' +
+          '1300000000000000000000000000000000000000000000000000000000000000'
+      ].pack('H*')
+    )
+  end
+
+  it 'emptyTestStruct' do
+    expect(Slowssz::Marshal.dump(EmptyTestContainer.new)).to eq('')
+  end
+
+  it 'singleFieldTestStruct' do
+    expect(Slowssz::Marshal.dump(SingleFieldTestContainer.new(Slowssz::Uint8.new(0xab)))).to eq(['ab'].pack('H*'))
+  end
+
+  it 'small {4567, 0123}' do
+    expect(
+      Slowssz::Marshal.dump(SmallTestContainer.new(Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)))
+    ).to eq(['67452301'].pack('H*'))
+  end
+
+  it 'small [4567, 0123]::2' do
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::Vector.new(Slowssz::Uint16, [Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)])
+      )
+    ).to eq(['67452301'].pack('H*'))
   end
 
   def new_bit_vector_from_bytes(bytes)

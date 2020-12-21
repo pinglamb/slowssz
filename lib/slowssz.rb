@@ -6,6 +6,7 @@ module Slowssz
   class WrongType < StandardError; end
   class IncorrectSize < StandardError; end
   class ListTooBig < StandardError; end
+  class InsufficientArguments < StandardError; end
 
   class Uint8
     attr_reader :value
@@ -13,7 +14,7 @@ module Slowssz
     private
 
     def initialize(value = 0)
-      @value = value % 0xff
+      @value = value % 0x100
     end
   end
 
@@ -23,7 +24,7 @@ module Slowssz
     private
 
     def initialize(value = 0)
-      @value = value % 0xffff
+      @value = value % 0x10000
     end
   end
 
@@ -33,7 +34,7 @@ module Slowssz
     private
 
     def initialize(value = 0)
-      @value = value % 0xffffffff
+      @value = value % 0x100000000
     end
   end
 
@@ -43,7 +44,7 @@ module Slowssz
     private
 
     def initialize(value = 0)
-      @value = value % 0xffffffffffffffff
+      @value = value % 0x10000000000000000
     end
   end
 
@@ -158,6 +159,38 @@ module Slowssz
     end
   end
 
+  class Container
+    def self.fields(fields)
+      @_fields = fields
+      @_fields.each { |field| attr_writer field[0] }
+      @_fields
+    end
+
+    class << self
+      attr_reader :_fields
+    end
+
+    def fields
+      self.class._fields
+    end
+
+    def values
+      fields.collect { |field| instance_variable_get("@#{field[0]}") }
+    end
+
+    private
+
+    def initialize(*values)
+      raise InsufficientArguments unless fields.size == values.size
+
+      fields.each.with_index do |field, i|
+        raise WrongType unless values[i].is_a?(field[1])
+
+        instance_variable_set("@#{field[0]}", values[i])
+      end
+    end
+  end
+
   class Marshal
     class << self
       def dump(obj)
@@ -175,8 +208,12 @@ module Slowssz
           dump_uint32(obj)
         elsif obj.is_a?(Uint64)
           dump_uint64(obj)
+        elsif obj.is_a?(Vector)
+          dump_vector(obj)
         elsif obj.is_a?(List)
           dump_list(obj)
+        elsif obj.is_a?(Container)
+          dump_container(obj)
         else
           ''
         end
@@ -212,8 +249,16 @@ module Slowssz
         [uint64.value].pack('Q<')
       end
 
+      def dump_vector(vector)
+        vector.value.inject('') { |str, v| str + dump(v) }
+      end
+
       def dump_list(list)
         list.value.inject('') { |str, v| str + dump(v) }
+      end
+
+      def dump_container(container)
+        container.values.inject('') { |str, v| str + dump(v) }
       end
     end
   end
