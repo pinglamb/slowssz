@@ -12,6 +12,18 @@ class SmallTestContainer < Slowssz::Container
   fields [[:a, Slowssz::Uint16], [:b, Slowssz::Uint16]]
 end
 
+def new_bit_vector_from_bytes(size, bytes, bits)
+  Slowssz::BitVectorType
+    .of(size: size)
+    .new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' } + bits)
+end
+
+def new_bit_list_from_bytes(limit, bytes, bits)
+  Slowssz::BitListType
+    .of(limit: limit)
+    .new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' } + bits)
+end
+
 RSpec.describe Slowssz do
   it 'bool F' do
     expect(Slowssz::Marshal.dump(Slowssz::Boolean.new(false))).to eq(['00'].pack('H*'))
@@ -22,51 +34,63 @@ RSpec.describe Slowssz do
   end
 
   it 'bitvector TTFTFTFF' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitVector.new([true, true, false, true, false, true, false, false]))).to eq(
-      ['2b'].pack('H*')
-    )
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::BitVectorType.of(size: 8).new([true, true, false, true, false, true, false, false])
+      )
+    ).to eq(['2b'].pack('H*'))
   end
 
   it 'bitlist TTFTFTFF' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitList.new([true, true, false, true, false, true, false, false], 8))).to eq(
-      ['2b01'].pack('H*')
-    )
+    expect(
+      Slowssz::Marshal.dump(Slowssz::BitListType.of(limit: 8).new([true, true, false, true, false, true, false, false]))
+    ).to eq(['2b01'].pack('H*'))
   end
 
   it 'bitvector FTFT' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitVector.new([false, true, false, true]))).to eq(['0a'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::BitVectorType.of(size: 4).new([false, true, false, true]))).to eq(
+      ['0a'].pack('H*')
+    )
   end
 
   it 'bitlist FTFT' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitList.new([false, true, false, true], 4))).to eq(['1a'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::BitListType.of(limit: 4).new([false, true, false, true]))).to eq(
+      ['1a'].pack('H*')
+    )
   end
 
   it 'bitvector FTF' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitVector.new([false, true, false]))).to eq(['02'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::BitVectorType.of(size: 3).new([false, true, false]))).to eq(['02'].pack('H*'))
   end
 
   it 'bitlist FTF' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitList.new([false, true, false], 4))).to eq(['0a'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::BitListType.of(limit: 4).new([false, true, false]))).to eq(['0a'].pack('H*'))
   end
 
   it 'bitvector TFTFFFTTFT' do
     expect(
-      Slowssz::Marshal.dump(Slowssz::BitVector.new([true, false, true, false, false, false, true, true, false, true]))
+      Slowssz::Marshal.dump(
+        Slowssz::BitVectorType.of(size: 10).new([true, false, true, false, false, false, true, true, false, true])
+      )
     ).to eq(['c502'].pack('H*'))
   end
 
   it 'bitlist TFTFFFTTFT' do
     expect(
-      Slowssz::Marshal.dump(Slowssz::BitList.new([true, false, true, false, false, false, true, true, false, true], 10))
+      Slowssz::Marshal.dump(
+        Slowssz::BitListType.of(limit: 10).new([true, false, true, false, false, false, true, true, false, true])
+      )
     ).to eq(['c506'].pack('H*'))
   end
 
   it 'bitvector TFTFFFTTFTFFFFTT' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::BitVector.new(
-          [true, false, true, false, false, false, true, true, false, true, false, false, false, false, true, true]
-        )
+        Slowssz::BitVectorType
+          .of(size: 16)
+          .new(
+            [true, false, true, false, false, false, true, true, false, true, false, false, false, false, true, true]
+          )
       )
     ).to eq(['c5c2'].pack('H*'))
   end
@@ -74,32 +98,35 @@ RSpec.describe Slowssz do
   it 'bitlist TFTFFFTTFTFFFFTT' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::BitList.new(
-          [true, false, true, false, false, false, true, true, false, true, false, false, false, false, true, true],
-          16
-        )
+        Slowssz::BitListType
+          .of(limit: 16)
+          .new(
+            [true, false, true, false, false, false, true, true, false, true, false, false, false, false, true, true]
+          )
       )
     ).to eq(['c5c201'].pack('H*'))
   end
 
   it 'long bitvector' do
-    expect(Slowssz::Marshal.dump(new_bit_vector_from_bytes('ff' * 64))).to eq(['ff' * 64].pack('H*'))
+    expect(Slowssz::Marshal.dump(new_bit_vector_from_bytes(512, 'ff' * 64, []))).to eq(['ff' * 64].pack('H*'))
   end
 
   it 'long bitlist' do
-    expect(Slowssz::Marshal.dump(Slowssz::BitList.new([true, true], 512))).to eq(['07'].pack('H*'))
+    expect(Slowssz::Marshal.dump(Slowssz::BitListType.of(limit: 512).new([true, true]))).to eq(['07'].pack('H*'))
   end
 
   it 'long bitlist filled' do
-    expect(Slowssz::Marshal.dump(new_bit_list_from_bytes('ff' * 64, [], 512))).to eq(['ff' * 64 + '01'].pack('H*'))
+    expect(Slowssz::Marshal.dump(new_bit_list_from_bytes(512, 'ff' * 64, []))).to eq(['ff' * 64 + '01'].pack('H*'))
   end
 
   it 'odd bitvector filled' do
-    expect(Slowssz::Marshal.dump(new_bit_vector_from_bytes('ff' * 64 + '01'))).to eq(['ff' * 64 + '01'].pack('H*'))
+    expect(Slowssz::Marshal.dump(new_bit_vector_from_bytes(513, 'ff' * 64, [true]))).to eq(
+      ['ff' * 64 + '01'].pack('H*')
+    )
   end
 
   it 'odd bitlist filled' do
-    expect(Slowssz::Marshal.dump(new_bit_list_from_bytes('ff' * 64, [true], 513))).to eq(['ff' * 64 + '03'].pack('H*'))
+    expect(Slowssz::Marshal.dump(new_bit_list_from_bytes(513, 'ff' * 64, [true]))).to eq(['ff' * 64 + '03'].pack('H*'))
   end
 
   it 'uint8 00' do
@@ -141,9 +168,9 @@ RSpec.describe Slowssz do
   it 'uint16 list' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::List
-          .new(Slowssz::Uint16, 32)
-          .val([Slowssz::Uint16.new(0xaabb), Slowssz::Uint16.new(0xc0ad), Slowssz::Uint16.new(0xeeff)])
+        Slowssz::ListType
+          .of(type: Slowssz::Uint16, limit: 32)
+          .new([Slowssz::Uint16.new(0xaabb), Slowssz::Uint16.new(0xc0ad), Slowssz::Uint16.new(0xeeff)])
       )
     ).to eq(['bbaaadc0ffee'].pack('H*'))
   end
@@ -151,9 +178,9 @@ RSpec.describe Slowssz do
   it 'uint32 list' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::List
-          .new(Slowssz::Uint32, 128)
-          .val([Slowssz::Uint32.new(0xaabb), Slowssz::Uint32.new(0xc0ad), Slowssz::Uint32.new(0xeeff)])
+        Slowssz::ListType
+          .of(type: Slowssz::Uint32, limit: 128)
+          .new([Slowssz::Uint32.new(0xaabb), Slowssz::Uint32.new(0xc0ad), Slowssz::Uint32.new(0xeeff)])
       )
     ).to eq(['bbaa0000adc00000ffee0000'].pack('H*'))
   end
@@ -161,22 +188,19 @@ RSpec.describe Slowssz do
   it 'bytes32 list' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::List
-          .new(Slowssz::Vector, 64)
-          .val(
+        Slowssz::ListType
+          .of(type: Slowssz::VectorType.of(type: Slowssz::Uint8, size: 32), limit: 64)
+          .new(
             [
-              Slowssz::Vector.new(
-                Slowssz::Uint8,
-                [Slowssz::Uint8.new(0xbb), Slowssz::Uint8.new(0xaa)] + [Slowssz::Uint8.new(0x00)] * 30
-              ),
-              Slowssz::Vector.new(
-                Slowssz::Uint8,
-                [Slowssz::Uint8.new(0xad), Slowssz::Uint8.new(0xc0)] + [Slowssz::Uint8.new(0x00)] * 30
-              ),
-              Slowssz::Vector.new(
-                Slowssz::Uint8,
-                [Slowssz::Uint8.new(0xff), Slowssz::Uint8.new(0xee)] + [Slowssz::Uint8.new(0x00)] * 30
-              )
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(0xbb), Slowssz::Uint8.new(0xaa)] + [Slowssz::Uint8.new(0x00)] * 30),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(0xad), Slowssz::Uint8.new(0xc0)] + [Slowssz::Uint8.new(0x00)] * 30),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(0xff), Slowssz::Uint8.new(0xee)] + [Slowssz::Uint8.new(0x00)] * 30)
             ]
           )
       )
@@ -192,29 +216,67 @@ RSpec.describe Slowssz do
   it 'bytes32 list long' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::List
-          .new(Slowssz::Vector, 128)
-          .val(
+        Slowssz::ListType
+          .of(type: Slowssz::VectorType.of(type: Slowssz::Uint8, size: 32), limit: 128)
+          .new(
             [
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(1)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(2)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(3)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(4)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(5)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(6)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(7)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(8)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(9)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(10)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(11)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(12)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(13)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(14)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(15)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(16)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(17)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(18)] + [Slowssz::Uint8.new(0x00)] * 31),
-              Slowssz::Vector.new(Slowssz::Uint8, [Slowssz::Uint8.new(19)] + [Slowssz::Uint8.new(0x00)] * 31)
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(1)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(2)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(3)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(4)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(5)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(6)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(7)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(8)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(9)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(10)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(11)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(12)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(13)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(14)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(15)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(16)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(17)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(18)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(19)] + [Slowssz::Uint8.new(0x00)] * 31)
             ]
           )
       )
@@ -260,16 +322,10 @@ RSpec.describe Slowssz do
   it 'small [4567, 0123]::2' do
     expect(
       Slowssz::Marshal.dump(
-        Slowssz::Vector.new(Slowssz::Uint16, [Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)])
+        Slowssz::VectorType
+          .of(type: Slowssz::Uint16, size: 2)
+          .new([Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)])
       )
     ).to eq(['67452301'].pack('H*'))
-  end
-
-  def new_bit_vector_from_bytes(bytes)
-    Slowssz::BitVector.new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' })
-  end
-
-  def new_bit_list_from_bytes(bytes, bits, capacity)
-    Slowssz::BitList.new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' } + bits, capacity)
   end
 end
