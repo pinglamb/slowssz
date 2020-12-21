@@ -12,6 +12,18 @@ class SmallTestContainer < Slowssz::Container
   fields [[:a, Slowssz::Uint16], [:b, Slowssz::Uint16]]
 end
 
+class FixedTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint8], [:b, Slowssz::Uint64], [:c, Slowssz::Uint32]]
+end
+
+class WithPointerChildren < Slowssz::Container
+  fields [[:a, SmallTestContainer], [:b, FixedTestContainer], [:c, Slowssz::Uint64]]
+end
+
+class VarTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint16], [:b, Slowssz::ListType.of(type: Slowssz::Uint16, limit: 1024)], [:c, Slowssz::Uint8]]
+end
+
 def new_bit_vector_from_bytes(size, bytes, bits)
   Slowssz::BitVectorType
     .of(size: size)
@@ -305,14 +317,6 @@ RSpec.describe Slowssz do
     )
   end
 
-  it 'emptyTestStruct' do
-    expect(Slowssz::Marshal.dump(EmptyTestContainer.new)).to eq('')
-  end
-
-  it 'singleFieldTestStruct' do
-    expect(Slowssz::Marshal.dump(SingleFieldTestContainer.new(Slowssz::Uint8.new(0xab)))).to eq(['ab'].pack('H*'))
-  end
-
   it 'small {4567, 0123}' do
     expect(
       Slowssz::Marshal.dump(SmallTestContainer.new(Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)))
@@ -327,5 +331,56 @@ RSpec.describe Slowssz do
           .new([Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)])
       )
     ).to eq(['67452301'].pack('H*'))
+  end
+
+  it 'sig' do
+    expect(
+      Slowssz::Marshal.dump(
+        Slowssz::VectorType
+          .of(type: Slowssz::Uint8, size: 96)
+          .new(
+            [Slowssz::Uint8.new(0x01)] + [Slowssz::Uint8.new] * 31 + [Slowssz::Uint8.new(0x02)] +
+              [Slowssz::Uint8.new] * 31 + [Slowssz::Uint8.new(0x03)] + [Slowssz::Uint8.new] * 30 + [
+              Slowssz::Uint8.new(0xff)
+            ]
+          )
+      )
+    ).to eq(['01' + '00' * 31 + '02' + '00' * 31 + '03' + '00' * 30 + 'ff'].pack('H*'))
+  end
+
+  it 'emptyTestStruct' do
+    expect(Slowssz::Marshal.dump(EmptyTestContainer.new)).to eq('')
+  end
+
+  it 'singleFieldTestStruct' do
+    expect(Slowssz::Marshal.dump(SingleFieldTestContainer.new(Slowssz::Uint8.new(0xab)))).to eq(['ab'].pack('H*'))
+  end
+
+  it 'withPointerChildren' do
+    expect(
+      Slowssz::Marshal.dump(
+        WithPointerChildren.new(
+          SmallTestContainer.new(Slowssz::Uint16.new(0x1122), Slowssz::Uint16.new(0x3344)),
+          FixedTestContainer.new(
+            Slowssz::Uint8.new(0xab),
+            Slowssz::Uint64.new(0xaabbccdd00112233),
+            Slowssz::Uint32.new(0x12345678)
+          ),
+          Slowssz::Uint64.new(0x42)
+        )
+      )
+    ).to eq(['22114433' + 'ab33221100ddccbbaa78563412' + '4200000000000000'].pack('H*'))
+  end
+
+  it 'fixedTestStruct' do
+    expect(
+      Slowssz::Marshal.dump(
+        FixedTestContainer.new(
+          Slowssz::Uint8.new(0xab),
+          Slowssz::Uint64.new(0xaabbccdd00112233),
+          Slowssz::Uint32.new(0x12345678)
+        )
+      )
+    ).to eq(['ab33221100ddccbbaa78563412'].pack('H*'))
   end
 end

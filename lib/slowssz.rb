@@ -200,7 +200,7 @@ module Slowssz
       @type = type
 
       raise IncorrectSize unless value.size == @type.size
-      raise WrongType unless value.all? { |ele| ele.type == @type.type }
+      raise WrongType, "#{ele.type} vs #{@type.type}" unless value.all? { |ele| ele.type == @type.type }
 
       @value = value
     end
@@ -234,7 +234,7 @@ module Slowssz
 
     def <<(ele)
       raise ListTooBig unless size < limit
-      raise WrongType unless ele.type == value_type
+      raise WrongType, "#{ele.type} vs #{value_type}" unless ele.type == value_type
 
       @value << ele
     end
@@ -257,7 +257,7 @@ module Slowssz
       @type = type
 
       raise ListTooBig unless value.size <= @type.limit
-      raise WrongType unless value.all? { |ele| ele.type == @type.type }
+      raise WrongType, "#{ele.type} vs #{@type.type}" unless value.all? { |ele| ele.type == @type.type }
 
       @value = value
     end
@@ -284,13 +284,17 @@ module Slowssz
       fields.collect { |field| instance_variable_get("@#{field[0]}") }
     end
 
+    def type
+      self.class
+    end
+
     private
 
     def initialize(*values)
       raise InsufficientArguments unless fields.size == values.size
 
       fields.each.with_index do |field, i|
-        raise WrongType unless values[i].is_a?(field[1])
+        raise WrongType, "#{values[i].type} vs #{field[1]}" unless values[i].type == field[1]
 
         instance_variable_set("@#{field[0]}", values[i])
       end
