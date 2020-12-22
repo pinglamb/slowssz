@@ -55,6 +55,10 @@ def new_bit_list_from_bytes(limit, bytes, bits)
     .new([bytes].pack('H*').unpack1('b*').split('').collect { |bool| bool == '1' } + bits)
 end
 
+def string_to_bytes_array(str)
+  str.bytes.collect { |byte| Slowssz::Uint8.new(byte) }
+end
+
 RSpec.describe Slowssz do
   describe '.restore' do
     it 'bool F' do
@@ -449,6 +453,152 @@ RSpec.describe Slowssz do
             .of(type: Slowssz::Uint16, limit: 1024)
             .new([Slowssz::Uint16.new(1), Slowssz::Uint16.new(2), Slowssz::Uint16.new(3)]),
           Slowssz::Uint8.new(0xff)
+        )
+      )
+    end
+
+    it 'empty list' do
+      expect(Slowssz::Marshal.restore([''].pack('H*'), Slowssz::ListType.of(type: SmallTestContainer, limit: 4))).to eq(
+        Slowssz::ListType.of(type: SmallTestContainer, limit: 4).new([])
+      )
+    end
+
+    it 'empty var element list' do
+      expect(Slowssz::Marshal.restore([''].pack('H*'), Slowssz::ListType.of(type: VarTestContainer, limit: 8))).to eq(
+        Slowssz::ListType.of(type: VarTestContainer, limit: 8).new([])
+      )
+    end
+
+    it 'var element list' do
+      expect(
+        Slowssz::Marshal.restore(
+          ['08000000' + '15000000' + 'adde0700000011010002000300' + 'efbe0700000022040005000600'].pack('H*'),
+          Slowssz::ListType.of(type: VarTestContainer, limit: 8)
+        )
+      ).to eq(
+        Slowssz::ListType
+          .of(type: VarTestContainer, limit: 8)
+          .new(
+            [
+              VarTestContainer.new(
+                Slowssz::Uint16.new(0xdead),
+                Slowssz::ListType
+                  .of(type: Slowssz::Uint16, limit: 1024)
+                  .new([Slowssz::Uint16.new(1), Slowssz::Uint16.new(2), Slowssz::Uint16.new(3)]),
+                Slowssz::Uint8.new(0x11)
+              ),
+              VarTestContainer.new(
+                Slowssz::Uint16.new(0xbeef),
+                Slowssz::ListType
+                  .of(type: Slowssz::Uint16, limit: 1024)
+                  .new([Slowssz::Uint16.new(4), Slowssz::Uint16.new(5), Slowssz::Uint16.new(6)]),
+                Slowssz::Uint8.new(0x22)
+              )
+            ]
+          )
+      )
+    end
+
+    it 'empty list fields' do
+      expect(Slowssz::Marshal.restore(['08000000' + '08000000'].pack('H*'), ListContainer)).to eq(
+        ListContainer.new(nil, nil)
+      )
+    end
+
+    it 'empty last field' do
+      expect(
+        Slowssz::Marshal.restore(
+          ['08000000' + '14000000' + ('11aa22bb' + '33cc44dd' + '34126745')].pack('H*'),
+          ListContainer
+        )
+      ).to eq(
+        ListContainer.new(
+          Slowssz::ListType
+            .of(type: SmallTestContainer, limit: 4)
+            .new(
+              [
+                SmallTestContainer.new(Slowssz::Uint16.new(0xaa11), Slowssz::Uint16.new(0xbb22)),
+                SmallTestContainer.new(Slowssz::Uint16.new(0xcc33), Slowssz::Uint16.new(0xdd44)),
+                SmallTestContainer.new(Slowssz::Uint16.new(0x1234), Slowssz::Uint16.new(0x4567))
+              ]
+            ),
+          nil
+        )
+      )
+    end
+
+    it 'complexTestStruct' do
+      expect(
+        Slowssz::Marshal.restore(
+          [
+            'bbaa' + '47000000' + 'ff' + '4b000000' + '51000000' + 'cc424242424242424237133713' +
+              'dd3333333333333333cdabcdab' + 'ee444444444444444433221100' + 'ff555555555555555577665544' + '5e000000' +
+              '22114433' + '666f6f626172' + 'cdab07000000ff010002000300' + '08000000' + '15000000' +
+              'adde0700000011010002000300' + 'efbe0700000022040005000600'
+          ].pack('H*'),
+          ComplexTestContainer
+        )
+      ).to eq(
+        ComplexTestContainer.new(
+          Slowssz::Uint16.new(0xaabb),
+          Slowssz::ListType
+            .of(type: Slowssz::Uint16, limit: 128)
+            .new([Slowssz::Uint16.new(0x1122), Slowssz::Uint16.new(0x3344)]),
+          Slowssz::Uint8.new(0xff),
+          Slowssz::ListType.of(type: Slowssz::Uint8, limit: 256).new(string_to_bytes_array('foobar')),
+          VarTestContainer.new(
+            Slowssz::Uint16.new(0xabcd),
+            Slowssz::ListType
+              .of(type: Slowssz::Uint16, limit: 1024)
+              .new([Slowssz::Uint16.new(1), Slowssz::Uint16.new(2), Slowssz::Uint16.new(3)]),
+            Slowssz::Uint8.new(0xff)
+          ),
+          Slowssz::VectorType
+            .of(type: FixedTestContainer, size: 4)
+            .new(
+              [
+                FixedTestContainer.new(
+                  Slowssz::Uint8.new(0xcc),
+                  Slowssz::Uint64.new(0x4242424242424242),
+                  Slowssz::Uint32.new(0x13371337)
+                ),
+                FixedTestContainer.new(
+                  Slowssz::Uint8.new(0xdd),
+                  Slowssz::Uint64.new(0x3333333333333333),
+                  Slowssz::Uint32.new(0xabcdabcd)
+                ),
+                FixedTestContainer.new(
+                  Slowssz::Uint8.new(0xee),
+                  Slowssz::Uint64.new(0x4444444444444444),
+                  Slowssz::Uint32.new(0x00112233)
+                ),
+                FixedTestContainer.new(
+                  Slowssz::Uint8.new(0xff),
+                  Slowssz::Uint64.new(0x5555555555555555),
+                  Slowssz::Uint32.new(0x44556677)
+                )
+              ]
+            ),
+          Slowssz::VectorType
+            .of(type: VarTestContainer, size: 2)
+            .new(
+              [
+                VarTestContainer.new(
+                  Slowssz::Uint16.new(0xdead),
+                  Slowssz::ListType
+                    .of(type: Slowssz::Uint16, limit: 1024)
+                    .new([Slowssz::Uint16.new(1), Slowssz::Uint16.new(2), Slowssz::Uint16.new(3)]),
+                  Slowssz::Uint8.new(0x11)
+                ),
+                VarTestContainer.new(
+                  Slowssz::Uint16.new(0xbeef),
+                  Slowssz::ListType
+                    .of(type: Slowssz::Uint16, limit: 1024)
+                    .new([Slowssz::Uint16.new(4), Slowssz::Uint16.new(5), Slowssz::Uint16.new(6)]),
+                  Slowssz::Uint8.new(0x22)
+                )
+              ]
+            )
         )
       )
     end

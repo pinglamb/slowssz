@@ -671,7 +671,24 @@ module Slowssz
 
       def restore_vector(bytes, type)
         if type.ele_variable_size?
-          raise 'TODO'
+          return type.new([]) if bytes.length == 0
+
+          splitted = bytes.split('')
+          length = restore(splitted[0...BYTES_PER_LENGTH_OFFSET].join(''), Uint32).value / BYTES_PER_LENGTH_OFFSET
+
+          offsets = []
+          length.times do |i|
+            offsets <<
+              restore(splitted[(i * BYTES_PER_LENGTH_OFFSET)...((i + 1) * BYTES_PER_LENGTH_OFFSET)].join(''), Uint32)
+          end
+          offsets << Uint32.new(bytes.size)
+
+          decoded = []
+          length.times do |i|
+            decoded << restore(splitted[offsets[i].value...offsets[i + 1].value].join(''), type.ele_type)
+          end
+
+          type.new(decoded)
         else
           decoded = []
           length = bytes.split('').size / type.ele_type.length
@@ -684,13 +701,31 @@ module Slowssz
 
       def restore_list(bytes, type)
         if type.ele_variable_size?
-          raise 'TODO'
-        else
+          return type.new([]) if bytes.length == 0
+
+          splitted = bytes.split('')
+          length = restore(splitted[0...BYTES_PER_LENGTH_OFFSET].join(''), Uint32).value / BYTES_PER_LENGTH_OFFSET
+
+          offsets = []
+          length.times do |i|
+            offsets <<
+              restore(splitted[(i * BYTES_PER_LENGTH_OFFSET)...((i + 1) * BYTES_PER_LENGTH_OFFSET)].join(''), Uint32)
+          end
+          offsets << Uint32.new(bytes.size)
+
           decoded = []
-          length = bytes.split('').size / type.ele_type.length
+          length.times do |i|
+            decoded << restore(splitted[offsets[i].value...offsets[i + 1].value].join(''), type.ele_type)
+          end
+
+          type.new(decoded)
+        else
+          splitted = bytes.split('')
+          decoded = []
+          length = splitted.size / type.ele_type.length
           raise ListTooBig if length > type.limit
 
-          bytes.split('').each_slice(type.ele_type.length) { |slice| decoded << restore(slice.join(''), type.ele_type) }
+          splitted.each_slice(type.ele_type.length) { |slice| decoded << restore(slice.join(''), type.ele_type) }
           type.new(decoded)
         end
       end
