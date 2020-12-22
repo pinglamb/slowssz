@@ -1,5 +1,48 @@
 # frozen_string_literal: true
 
+class EmptyTestContainer < Slowssz::Container
+  fields []
+end
+
+class SingleFieldTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint8]]
+end
+
+class SmallTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint16], [:b, Slowssz::Uint16]]
+end
+
+class FixedTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint8], [:b, Slowssz::Uint64], [:c, Slowssz::Uint32]]
+end
+
+class WithPointerChildren < Slowssz::Container
+  fields [[:a, SmallTestContainer], [:b, FixedTestContainer], [:c, Slowssz::Uint64]]
+end
+
+class VarTestContainer < Slowssz::Container
+  fields [[:a, Slowssz::Uint16], [:b, Slowssz::ListType.of(type: Slowssz::Uint16, limit: 1024)], [:c, Slowssz::Uint8]]
+end
+
+class ListContainer < Slowssz::Container
+  fields [
+           [:a, Slowssz::ListType.of(type: SmallTestContainer, limit: 4)],
+           [:b, Slowssz::ListType.of(type: VarTestContainer, limit: 8)]
+         ]
+end
+
+class ComplexTestContainer < Slowssz::Container
+  fields [
+           [:a, Slowssz::Uint16],
+           [:b, Slowssz::ListType.of(type: Slowssz::Uint16, limit: 128)],
+           [:c, Slowssz::Uint8],
+           [:d, Slowssz::ListType.of(type: Slowssz::Uint8, limit: 256)],
+           [:e, VarTestContainer],
+           [:f, Slowssz::VectorType.of(type: FixedTestContainer, size: 4)],
+           [:g, Slowssz::VectorType.of(type: VarTestContainer, size: 2)]
+         ]
+end
+
 def new_bit_vector_from_bytes(size, bytes, bits)
   Slowssz::BitVectorType
     .of(size: size)
@@ -300,6 +343,40 @@ RSpec.describe Slowssz do
               Slowssz::VectorType
                 .of(type: Slowssz::Uint8, size: 32)
                 .new([Slowssz::Uint8.new(19)] + [Slowssz::Uint8.new(0x00)] * 31)
+            ]
+          )
+      )
+    end
+
+    it 'small {4567, 0123}' do
+      expect(Slowssz::Marshal.restore(['67452301'].pack('H*'), SmallTestContainer)).to eq(
+        SmallTestContainer.new(Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123))
+      )
+    end
+
+    it 'small [4567, 0123]::2' do
+      expect(
+        Slowssz::Marshal.restore(['67452301'].pack('H*'), Slowssz::VectorType.of(type: Slowssz::Uint16, size: 2))
+      ).to eq(
+        Slowssz::VectorType
+          .of(type: Slowssz::Uint16, size: 2)
+          .new([Slowssz::Uint16.new(0x4567), Slowssz::Uint16.new(0x0123)])
+      )
+    end
+
+    it 'sig' do
+      expect(
+        Slowssz::Marshal.restore(
+          ['01' + '00' * 31 + '02' + '00' * 31 + '03' + '00' * 30 + 'ff'].pack('H*'),
+          Slowssz::VectorType.of(type: Slowssz::Uint8, size: 96)
+        )
+      ).to eq(
+        Slowssz::VectorType
+          .of(type: Slowssz::Uint8, size: 96)
+          .new(
+            [Slowssz::Uint8.new(0x01)] + [Slowssz::Uint8.new] * 31 + [Slowssz::Uint8.new(0x02)] +
+              [Slowssz::Uint8.new] * 31 + [Slowssz::Uint8.new(0x03)] + [Slowssz::Uint8.new] * 30 + [
+              Slowssz::Uint8.new(0xff)
             ]
           )
       )

@@ -462,6 +462,10 @@ module Slowssz
       self.class.variable_size?
     end
 
+    def ==(other)
+      values == other.values
+    end
+
     private
 
     def initialize(*values)
@@ -514,6 +518,8 @@ module Slowssz
           restore_bit_vector(bytes, type)
         elsif type.is_a?(BitListType)
           restore_bit_list(bytes, type)
+        elsif type <= Container
+          restore_container(bytes, type)
         elsif type == Boolean
           restore_bool(bytes)
         elsif type == Uint8
@@ -680,6 +686,21 @@ module Slowssz
 
           bytes.split('').each_slice(type.ele_type.length) { |slice| decoded << restore(slice.join(''), type.ele_type) }
           type.new(decoded)
+        end
+      end
+
+      def restore_container(bytes, type)
+        if type.variable_size?
+          raise 'TODO'
+        else
+          splitted = bytes.split('')
+          decoded = []
+          ptr = 0
+          type._fields.each do |field|
+            decoded << restore(splitted[ptr...(ptr + field[1].length)].join(''), field[1])
+            ptr += field[1].length
+          end
+          type.new(*decoded)
         end
       end
     end
