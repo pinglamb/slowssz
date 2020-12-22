@@ -7,6 +7,7 @@ module Slowssz
   class IncorrectSize < StandardError; end
   class ListTooBig < StandardError; end
   class InsufficientArguments < StandardError; end
+  class UnknownType < StandardError; end
 
   BYTES_PER_LENGTH_OFFSET = 4
 
@@ -23,6 +24,10 @@ module Slowssz
 
     def variable_size?
       self.class.variable_size?
+    end
+
+    def ==(other)
+      value == other.value
     end
 
     private
@@ -47,6 +52,10 @@ module Slowssz
       self.class.variable_size?
     end
 
+    def ==(other)
+      value == other.value
+    end
+
     private
 
     def initialize(value = 0)
@@ -67,6 +76,10 @@ module Slowssz
 
     def variable_size?
       self.class.variable_size?
+    end
+
+    def ==(other)
+      value == other.value
     end
 
     private
@@ -91,6 +104,10 @@ module Slowssz
       self.class.variable_size?
     end
 
+    def ==(other)
+      value == other.value
+    end
+
     private
 
     def initialize(value = 0)
@@ -111,6 +128,10 @@ module Slowssz
 
     def variable_size?
       self.class.variable_size?
+    end
+
+    def ==(other)
+      value == other.value
     end
 
     private
@@ -151,6 +172,10 @@ module Slowssz
 
     def variable_size?
       @type.variable_size?
+    end
+
+    def ==(other)
+      value == other.value
     end
 
     private
@@ -205,6 +230,10 @@ module Slowssz
 
     def variable_size?
       @type.variable_size?
+    end
+
+    def ==(other)
+      value == other.value
     end
 
     private
@@ -433,6 +462,26 @@ module Slowssz
         end
       end
 
+      def restore(bytes, type)
+        if type == Boolean
+          restore_bool(bytes)
+        elsif type.is_a?(BitVectorType)
+          restore_bit_vector(bytes, type)
+        elsif type.is_a?(BitListType)
+          restore_bit_list(bytes, type)
+        elsif type == Uint8
+          restore_uint8(bytes)
+        elsif type == Uint16
+          restore_uint16(bytes)
+        elsif type == Uint32
+          restore_uint32(bytes)
+        elsif type == Uint64
+          restore_uint64(bytes)
+        else
+          raise UnknownType
+        end
+      end
+
       private
 
       def dump_nil
@@ -522,6 +571,43 @@ module Slowssz
         else
           container.values.inject('') { |str, v| str + dump(v) }
         end
+      end
+
+      def restore_bool(bytes)
+        Boolean.new(bytes.unpack1('b') == '1')
+      end
+
+      def restore_bit_vector(bytes, type)
+        decoded = bytes.unpack1('b*').split('')
+        raise IncorrectSize if decoded.size < type.size
+
+        type.new(decoded[0...type.size].collect { |ele| ele == '1' })
+      end
+
+      def restore_bit_list(bytes, type)
+        decoded = bytes.unpack1('b*').split('')
+
+        # Index of last set bit (== '1') = the length of the list
+        length = decoded.rindex('1')
+        raise ListTooBig if length > type.limit
+
+        type.new(decoded[0...length].collect { |ele| ele == '1' })
+      end
+
+      def restore_uint8(bytes)
+        Uint8.new(bytes.unpack1('C'))
+      end
+
+      def restore_uint16(bytes)
+        Uint16.new(bytes.unpack1('v'))
+      end
+
+      def restore_uint32(bytes)
+        Uint32.new(bytes.unpack1('V'))
+      end
+
+      def restore_uint64(bytes)
+        Uint64.new(bytes.unpack1('Q<'))
       end
     end
   end
