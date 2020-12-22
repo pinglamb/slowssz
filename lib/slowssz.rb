@@ -436,6 +436,16 @@ module Slowssz
 
     class << self
       attr_reader :_fields
+
+      def variable_size?
+        _fields.any? { |field| field[1].variable_size? }
+      end
+
+      def length
+        raise VariableSize if variable_size?
+
+        _fields.sum { |field| field[1].length }
+      end
     end
 
     def fields
@@ -452,10 +462,6 @@ module Slowssz
 
     def type
       self.class
-    end
-
-    def self.variable_size?
-      _fields.any? { |field| field[1].variable_size? }
     end
 
     def variable_size?

@@ -381,5 +381,46 @@ RSpec.describe Slowssz do
           )
       )
     end
+
+    it 'emptyTestStruct' do
+      expect(Slowssz::Marshal.restore('', EmptyTestContainer)).to eq(EmptyTestContainer.new)
+    end
+
+    it 'singleFieldTestStruct' do
+      expect(Slowssz::Marshal.restore(['ab'].pack('H*'), SingleFieldTestContainer)).to eq(
+        SingleFieldTestContainer.new(Slowssz::Uint8.new(0xab))
+      )
+    end
+
+    it 'withPointerChildren' do
+      expect(
+        Slowssz::Marshal.restore(
+          ['22114433' + 'ab33221100ddccbbaa78563412' + '4200000000000000'].pack('H*'),
+          WithPointerChildren
+        )
+      ).to eq(
+        WithPointerChildren.new(
+          SmallTestContainer.new(Slowssz::Uint16.new(0x1122), Slowssz::Uint16.new(0x3344)),
+          FixedTestContainer.new(
+            Slowssz::Uint8.new(0xab),
+            Slowssz::Uint64.new(0xaabbccdd00112233),
+            Slowssz::Uint32.new(0x12345678)
+          ),
+          Slowssz::Uint64.new(0x42)
+        )
+      )
+    end
+
+    it 'fixedTestStruct' do
+      expect(
+        Slowssz::Marshal.dump(
+          FixedTestContainer.new(
+            Slowssz::Uint8.new(0xab),
+            Slowssz::Uint64.new(0xaabbccdd00112233),
+            Slowssz::Uint32.new(0x12345678)
+          )
+        )
+      ).to eq(['ab33221100ddccbbaa78563412'].pack('H*'))
+    end
   end
 end
