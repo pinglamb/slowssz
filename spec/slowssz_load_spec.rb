@@ -159,5 +159,150 @@ RSpec.describe Slowssz do
         Slowssz::Uint64.new(0x0123456789abcdef)
       )
     end
+
+    it 'uint16 list' do
+      expect(
+        Slowssz::Marshal.restore(['bbaaadc0ffee'].pack('H*'), Slowssz::ListType.of(type: Slowssz::Uint16, limit: 32))
+      ).to eq(
+        Slowssz::ListType
+          .of(type: Slowssz::Uint16, limit: 32)
+          .new([Slowssz::Uint16.new(0xaabb), Slowssz::Uint16.new(0xc0ad), Slowssz::Uint16.new(0xeeff)])
+      )
+    end
+
+    it 'uint32 list' do
+      expect(
+        Slowssz::Marshal.restore(
+          ['bbaa0000adc00000ffee0000'].pack('H*'),
+          Slowssz::ListType.of(type: Slowssz::Uint32, limit: 128)
+        )
+      ).to eq(
+        Slowssz::ListType
+          .of(type: Slowssz::Uint32, limit: 128)
+          .new([Slowssz::Uint32.new(0xaabb), Slowssz::Uint32.new(0xc0ad), Slowssz::Uint32.new(0xeeff)])
+      )
+    end
+
+    it 'bytes32 list' do
+      expect(
+        Slowssz::Marshal.restore(
+          [
+            'bbaa000000000000000000000000000000000000000000000000000000000000' +
+              'adc0000000000000000000000000000000000000000000000000000000000000' +
+              'ffee000000000000000000000000000000000000000000000000000000000000'
+          ].pack('H*'),
+          Slowssz::ListType.of(type: Slowssz::VectorType.of(type: Slowssz::Uint8, size: 32), limit: 64)
+        )
+      ).to eq(
+        Slowssz::ListType
+          .of(type: Slowssz::VectorType.of(type: Slowssz::Uint8, size: 32), limit: 64)
+          .new(
+            [
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(0xbb), Slowssz::Uint8.new(0xaa)] + [Slowssz::Uint8.new(0x00)] * 30),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(0xad), Slowssz::Uint8.new(0xc0)] + [Slowssz::Uint8.new(0x00)] * 30),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(0xff), Slowssz::Uint8.new(0xee)] + [Slowssz::Uint8.new(0x00)] * 30)
+            ]
+          )
+      )
+    end
+
+    it 'bytes32 list long' do
+      expect(
+        Slowssz::Marshal.restore(
+          [
+            '0100000000000000000000000000000000000000000000000000000000000000' +
+              '0200000000000000000000000000000000000000000000000000000000000000' +
+              '0300000000000000000000000000000000000000000000000000000000000000' +
+              '0400000000000000000000000000000000000000000000000000000000000000' +
+              '0500000000000000000000000000000000000000000000000000000000000000' +
+              '0600000000000000000000000000000000000000000000000000000000000000' +
+              '0700000000000000000000000000000000000000000000000000000000000000' +
+              '0800000000000000000000000000000000000000000000000000000000000000' +
+              '0900000000000000000000000000000000000000000000000000000000000000' +
+              '0a00000000000000000000000000000000000000000000000000000000000000' +
+              '0b00000000000000000000000000000000000000000000000000000000000000' +
+              '0c00000000000000000000000000000000000000000000000000000000000000' +
+              '0d00000000000000000000000000000000000000000000000000000000000000' +
+              '0e00000000000000000000000000000000000000000000000000000000000000' +
+              '0f00000000000000000000000000000000000000000000000000000000000000' +
+              '1000000000000000000000000000000000000000000000000000000000000000' +
+              '1100000000000000000000000000000000000000000000000000000000000000' +
+              '1200000000000000000000000000000000000000000000000000000000000000' +
+              '1300000000000000000000000000000000000000000000000000000000000000'
+          ].pack('H*'),
+          Slowssz::ListType.of(type: Slowssz::VectorType.of(type: Slowssz::Uint8, size: 32), limit: 128)
+        )
+      ).to eq(
+        Slowssz::ListType
+          .of(type: Slowssz::VectorType.of(type: Slowssz::Uint8, size: 32), limit: 128)
+          .new(
+            [
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(1)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(2)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(3)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(4)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(5)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(6)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(7)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(8)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(9)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(10)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(11)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(12)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(13)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(14)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(15)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(16)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(17)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(18)] + [Slowssz::Uint8.new(0x00)] * 31),
+              Slowssz::VectorType
+                .of(type: Slowssz::Uint8, size: 32)
+                .new([Slowssz::Uint8.new(19)] + [Slowssz::Uint8.new(0x00)] * 31)
+            ]
+          )
+      )
+    end
   end
 end

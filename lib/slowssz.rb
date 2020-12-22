@@ -8,6 +8,7 @@ module Slowssz
   class ListTooBig < StandardError; end
   class InsufficientArguments < StandardError; end
   class UnknownType < StandardError; end
+  class VariableSize < StandardError; end
 
   BYTES_PER_LENGTH_OFFSET = 4
 
@@ -16,6 +17,10 @@ module Slowssz
 
     def type
       Uint8
+    end
+
+    def self.length
+      1
     end
 
     def self.variable_size?
@@ -44,6 +49,10 @@ module Slowssz
       Uint16
     end
 
+    def self.length
+      2
+    end
+
     def self.variable_size?
       false
     end
@@ -68,6 +77,10 @@ module Slowssz
 
     def type
       Uint32
+    end
+
+    def self.length
+      4
     end
 
     def self.variable_size?
@@ -96,6 +109,10 @@ module Slowssz
       Uint64
     end
 
+    def self.length
+      8
+    end
+
     def self.variable_size?
       false
     end
@@ -120,6 +137,10 @@ module Slowssz
 
     def type
       Boolean
+    end
+
+    def self.length
+      1
     end
 
     def self.variable_size?
@@ -258,6 +279,10 @@ module Slowssz
       Vector.new(self, value)
     end
 
+    def ele_type
+      type
+    end
+
     def ==(other)
       type == other.type && size == other.size
     end
@@ -268,6 +293,12 @@ module Slowssz
 
     def ele_variable_size?
       @type.variable_size?
+    end
+
+    def length
+      raise VariableSize if variable_size?
+
+      type.length * size
     end
 
     private
@@ -297,6 +328,10 @@ module Slowssz
       @type.ele_variable_size?
     end
 
+    def ==(other)
+      value == other.value
+    end
+
     private
 
     def initialize(type, value)
@@ -318,6 +353,10 @@ module Slowssz
 
     def new(value)
       List.new(self, value)
+    end
+
+    def ele_type
+      type
     end
 
     def ==(other)
@@ -368,6 +407,10 @@ module Slowssz
 
     def ele_variable_size?
       @type.ele_variable_size?
+    end
+
+    def ==(other)
+      value == other.value
     end
 
     private
@@ -463,12 +506,16 @@ module Slowssz
       end
 
       def restore(bytes, type)
-        if type == Boolean
-          restore_bool(bytes)
+        if type.is_a?(VectorType)
+          restore_vector(bytes, type)
+        elsif type.is_a?(ListType)
+          restore_list(bytes, type)
         elsif type.is_a?(BitVectorType)
           restore_bit_vector(bytes, type)
         elsif type.is_a?(BitListType)
           restore_bit_list(bytes, type)
+        elsif type == Boolean
+          restore_bool(bytes)
         elsif type == Uint8
           restore_uint8(bytes)
         elsif type == Uint16
@@ -608,6 +655,32 @@ module Slowssz
 
       def restore_uint64(bytes)
         Uint64.new(bytes.unpack1('Q<'))
+      end
+
+      def restore_vector(bytes, type)
+        if type.ele_variable_size?
+          raise 'TODO'
+        else
+          decoded = []
+          length = bytes.split('').size / type.ele_type.length
+          raise IncorrectSize if length != type.size
+
+          bytes.split('').each_slice(type.ele_type.length) { |slice| decoded << restore(slice.join(''), type.ele_type) }
+          type.new(decoded)
+        end
+      end
+
+      def restore_list(bytes, type)
+        if type.ele_variable_size?
+          raise 'TODO'
+        else
+          decoded = []
+          length = bytes.split('').size / type.ele_type.length
+          raise ListTooBig if length > type.limit
+
+          bytes.split('').each_slice(type.ele_type.length) { |slice| decoded << restore(slice.join(''), type.ele_type) }
+          type.new(decoded)
+        end
       end
     end
   end
