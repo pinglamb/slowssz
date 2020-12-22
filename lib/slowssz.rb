@@ -696,18 +696,44 @@ module Slowssz
       end
 
       def restore_container(bytes, type)
+        splitted = bytes.split('')
+        decoded = []
+        ptr = 0
+
         if type.variable_size?
-          raise 'TODO'
+          offsets = []
+          type._fields.each do |field|
+            if field[1].variable_size?
+              offsets << restore(splitted[ptr...(ptr + BYTES_PER_LENGTH_OFFSET)].join(''), Uint32)
+              decoded << nil
+              ptr += BYTES_PER_LENGTH_OFFSET
+            else
+              decoded << restore(splitted[ptr...(ptr + field[1].length)].join(''), field[1])
+              ptr += field[1].length
+            end
+          end
+
+          offsets << Uint32.new(splitted.length)
+          offset_ptr = 0
+
+          decoded.each.with_index do |d, i|
+            if d.nil? && offsets[offset_ptr] != offsets[offset_ptr + 1]
+              decoded[i] =
+                restore(
+                  splitted[offsets[offset_ptr].value...offsets[offset_ptr + 1].value].join(''),
+                  type._fields[i][1]
+                )
+              offset_ptr += 1
+            end
+          end
         else
-          splitted = bytes.split('')
-          decoded = []
-          ptr = 0
           type._fields.each do |field|
             decoded << restore(splitted[ptr...(ptr + field[1].length)].join(''), field[1])
             ptr += field[1].length
           end
-          type.new(*decoded)
         end
+
+        type.new(*decoded)
       end
     end
   end
